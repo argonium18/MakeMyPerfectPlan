@@ -35,9 +35,9 @@ class ExcelHandler:
         workbook = openpyxl.load_workbook(file_path)
         sheet = workbook[sheet_name]
         
-        project_start_date = '2024-12-01'
-        project_end_date = '2024-12-31'
-        calendar_df = CalendarService.get_calendar_data(2024, project_start_date, project_end_date)
+        project_start_date = '2025-01-11'
+        project_end_date = '2025-01-31'
+        calendar_df = CalendarService.get_calendar_data(2025, project_start_date, project_end_date)
         
         for row in sheet.iter_rows(min_row=2):
             task_id = row[0].value

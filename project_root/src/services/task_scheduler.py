@@ -1,18 +1,20 @@
 from typing import List, Tuple
 from datetime import datetime
-from ortools.sat.python import cp_model
-from src.models.task import Task
+from ortools.sat.python import cp_model # 仮想環境内にインストール済み
+from src.models import *
+from src.utils.data_converter import DateConverter
 from src.utils.excel_handler import ExcelHandler
-from src.utils.date_converter import DateConverter
+from src.config.settings import *
+
 
 class TaskScheduler:
-    def __init__(self, num_workers: int, workday_hours: int, start_date: datetime):
+    def __init__(self, num_workers: int, workday_hours: int):
         self.tasks: List[Task] = []
         self.num_workers = num_workers
         self.workday_hours = workday_hours
-        self.start_date = start_date
+        self.start_date = PROJECT_START_DATE
         self.excel_handler = ExcelHandler()
-        self.date_converter = DateConverter(start_date)
+        self.date_converter = DateConverter(self.start_date)
 
     def load_tasks_from_excel(self, file_path: str, sheet_name: str):
         self.tasks = self.excel_handler.load_tasks(file_path, sheet_name)
@@ -29,6 +31,7 @@ class TaskScheduler:
         intervals = []
 
         for task in self.tasks:
+            task.duration = int(task.duration * 100)  # cp-satの計算のために、小数を整数に変換
             start = model.NewIntVar(0, 100000, f'start_{task.id}')
             end = model.NewIntVar(0, 100000, f'end_{task.id}')
             interval = model.NewIntervalVar(start, task.duration, end, f'interval_{task.id}')
@@ -58,8 +61,8 @@ class TaskScheduler:
         results = []
         if status == cp_model.OPTIMAL:
             for i, task in enumerate(self.tasks):
-                start_time = solver.Value(start_times[i])
-                end_time = solver.Value(end_times[i])
+                start_time = solver.Value(start_times[i]) /100
+                end_time = solver.Value(end_times[i]) / 100
                 
                 # CP-SATによる推定開始・終了時間の設定
                 task.cp_estimated_start_time, task.cp_estimated_end_time = self.date_converter.convert_to_datetime(start_time, end_time)
@@ -71,5 +74,5 @@ class TaskScheduler:
         
         return results
 
-    def export_results_to_excel(self, file_path: str, sheet_name: str, scheduling_results: List[Tuple[int, int, int]]):
-        self.excel_handler.export_results(file_path, sheet_name, self.tasks, scheduling_results)
+    def export_results_to_excel(self, output_file_path: str, sheet_name: str, scheduling_results: List[Tuple[int, int, int]]):
+        self.excel_handler.export_results(output_file_path, sheet_name, self.tasks, scheduling_results)
